@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VideoVault — Locked</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12141A; --surface:#1A1D26; --border:#2B2F3B;
+    --text:#EDEEF1; --text-dim:#8D93A3;
+    --amber:#FF8A3D; --amber-dim:#6B4526; --danger:#FF6B6B;
+    --font-display:'Space Grotesk',sans-serif;
+    --font-body:'Inter',sans-serif;
+    --font-mono:'JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:radial-gradient(ellipse 900px 500px at 15% -10%,rgba(255,138,61,.08),transparent),
+               radial-gradient(ellipse 700px 500px at 100% 10%,rgba(94,234,212,.05),transparent),
+               var(--bg);
+    color:var(--text);font-family:var(--font-body);
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    padding:24px;
+  }
+  .card{
+    width:100%;max-width:380px;
+    background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:32px 28px;position:relative;
+  }
+  .card::before{content:"";position:absolute;top:-1px;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,138,61,.5),transparent);}
+  .brand{display:flex;align-items:center;justify-content:center;gap:10px;font-family:var(--font-mono);margin-bottom:6px;}
+  .rec-dot{width:9px;height:9px;border-radius:50%;background:var(--amber);box-shadow:0 0 10px 2px rgba(255,138,61,.7);animation:pulse 2s infinite ease-in-out;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .brand-name{font-family:var(--font-display);font-weight:700;font-size:19px;}
+  .brand-name span{color:var(--amber);}
+  .lock-line{
+    text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);
+    letter-spacing:.1em;text-transform:uppercase;margin:18px 0 22px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .lock-line::before,.lock-line::after{content:"";flex:1;height:1px;background:var(--border);}
+  input{
+    width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+    padding:15px 16px;color:var(--text);font-family:var(--font-mono);font-size:15px;
+    outline:none;transition:border-color .15s;letter-spacing:.05em;
+  }
+  input:focus{border-color:var(--amber);}
+  input::placeholder{color:#565C6B;}
+  .btn{
+    width:100%;margin-top:12px;
+    font-family:var(--font-mono);font-weight:700;font-size:13px;letter-spacing:.06em;
+    text-transform:uppercase;border:none;border-radius:8px;padding:15px;cursor:pointer;
+    background:var(--amber);color:#1A1200;transition:filter .15s,transform .1s;
+  }
+  .btn:hover{filter:brightness(1.08);}
+  .btn:active{transform:scale(.98);}
+  .btn:disabled{background:var(--amber-dim);color:#8a6a4a;cursor:not-allowed;}
+  .msg{
+    margin-top:14px;font-family:var(--font-mono);font-size:12.5px;text-align:center;
+    min-height:16px;color:var(--danger);
+  }
+  .hint{
+    margin-top:24px;font-size:12px;color:var(--text-dim);text-align:center;line-height:1.6;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <div class="rec-dot"></div>
+      <div class="brand-name">VIDEO<span>VAULT</span></div>
+    </div>
+    <div class="lock-line">🔒 access locked</div>
+    <form id="login-form">
+      <input id="passcode" type="password" placeholder="Enter passcode" autocomplete="current-password" autofocus />
+      <button class="btn" id="submit-btn" type="submit">▶ Unlock</button>
+      <div class="msg" id="msg"></div>
+    </form>
+    <div class="hint">Ask whoever set this up for the passcode.</div>
+  </div>
+
+<script>
+const form = document.getElementById('login-form');
+const btn = document.getElementById('submit-btn');
+const msg = document.getElementById('msg');
+const input = document.getElementById('passcode');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const passcode = input.value.trim();
+  if (!passcode) return;
+  btn.disabled = true;
+  msg.textContent = '';
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passcode })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      window.location.href = '/';
+    } else {
+      msg.textContent = data.error || 'Wrong passcode.';
+      btn.disabled = false;
+      input.select();
+    }
+  } catch {
+    msg.textContent = 'Could not reach the server.';
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
