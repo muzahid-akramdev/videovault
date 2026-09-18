@@ -16,6 +16,39 @@ only your friends/family can use it.
   official export (Settings → Your Information → Download Your Information)
   is more reliable than any scraper — use this app as a complement to that.
 
+## Cookies look “active” but download still fails
+
+The badge used to count every non-comment line in the paste, so a whole-browser
+dump of ~800 tracking cookies looked like a working session. **yt-dlp does not
+care how many cookies you have.** It needs the login cookies:
+
+| Site | Required cookies |
+| --- | --- |
+| Facebook | `c_user` **and** `xs` (from facebook.com, while logged in) |
+| Instagram | `sessionid` |
+| YouTube | `SID` / `__Secure-1PSID` — and even then YouTube may still bot-check |
+
+Export **on the facebook.com / instagram.com tab**, Netscape **or** JSON.
+Do not use “export all cookies in this browser”.
+
+After saving, the badge must say **Logged in · Facebook** (or Instagram),
+not just a number. If it says “no login found”, the paste had no session.
+
+Other failure modes this build also fixes:
+
+- Cookie-Editor **JSON** used to be written as-is; yt-dlp only reads Netscape
+  (tab-separated). JSON is now converted.
+- Spaces instead of tabs (common after paste) used to make yt-dlp ignore the
+  file. Lines are rewritten as real Netscape.
+- `-f FORMAT+bestaudio` broke Facebook progressive videos that already have
+  audio. Format fallback is now `FORMAT / bestvideo+bestaudio / best`.
+- Analyze hid the real yt-dlp error. The red box now shows the extractor
+  message.
+- Docker image refreshes yt-dlp on boot (Facebook extractors go stale fast).
+
+Use a canonical URL when you can: `facebook.com/reel/…` or
+`facebook.com/watch/?v=…`, not `facebook.com/share/v/…` / `share/r/…`.
+
 ## Why this can't go on Vercel
 
 Vercel hosts serverless functions — they can't run system binaries like
@@ -43,6 +76,10 @@ small personal use). Vercel is not part of this setup.
 and take ~30–60s to wake back up on the next visit. Fine for occasional
 personal use; upgrade to a paid instance if that's annoying.
 
+After you pull this cookie-fix commit, **redeploy** the web service so the
+new backend is live, then **clear the old session** in the app and paste a
+fresh Facebook/Instagram export.
+
 ## Deploy to Railway (alternative)
 
 1. Push to GitHub.
@@ -67,6 +104,8 @@ Then open `http://localhost:3001` — you'll land on the passcode screen first.
 
 If `SITE_PASSCODE` is left unset, the app runs with **no gate** (open to
 anyone who reaches it) — only do this for strictly local/private use.
+
+You still need `yt-dlp` and `ffmpeg` on the PATH (`pip install -U yt-dlp`).
 
 ## How the passcode gate works
 

@@ -1,6 +1,6 @@
 {
   "name": "videovault-backend",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Backend for VideoVault - paste a link, get your video back.",
   "main": "server.js",
   "scripts": {

@@ -194,17 +194,17 @@
       </div>
       <div class="session-body" id="session-body">
         <div class="session-info">
-          Facebook and Instagram block automated access — they need proof you're logged in.
-          The safest way is to export your browser cookies from a tab where you're already logged in,
-          then paste them here. <strong>Your cookies stay on your own device</strong> (saved in your Termux home folder) and are never sent anywhere except to Facebook/Instagram itself via yt-dlp.
-          <br><br>
-          <strong>How to get your Facebook cookies (phone/PC browser):</strong>
+          Facebook and Instagram block automated access — they need <strong>your login cookies</strong>
+          (<code>c_user</code> + <code>xs</code> for Facebook, <code>sessionid</code> for Instagram).
+          A dump of hundreds of tracking cookies from the whole browser will show as “session active”
+          and still fail. Export <strong>while you are on facebook.com / instagram.com and logged in</strong>.
+          Netscape or Cookie-Editor JSON both work.
         </div>
         <ul class="steps-inline">
-          <li><span class="step-n">01</span><span>Install the <strong>Cookie-Editor</strong> browser extension (available for Chrome, Firefox, Edge).</span></li>
-          <li><span class="step-n">02</span><span>Open <strong>facebook.com</strong> in that browser and make sure you are logged in.</span></li>
-          <li><span class="step-n">03</span><span>Click the Cookie-Editor icon → click <strong>Export</strong> → choose <strong>Netscape</strong> format → Copy.</span></li>
-          <li><span class="step-n">04</span><span>Paste the copied text into the box below and click <strong>Save Session</strong>.</span></li>
+          <li><span class="step-n">01</span><span>Install <strong>Cookie-Editor</strong> (Chrome / Firefox / Edge) or “Get cookies.txt LOCALLY”.</span></li>
+          <li><span class="step-n">02</span><span>Open <strong>facebook.com</strong> (or instagram.com), make sure you are logged in, and stay on that tab.</span></li>
+          <li><span class="step-n">03</span><span>Export → <strong>Netscape</strong> or <strong>JSON</strong> → Copy. Do not export “all cookies in this browser”.</span></li>
+          <li><span class="step-n">04</span><span>Paste below → <strong>Save Session</strong>. The badge must say Facebook / Instagram, not just a cookie count.</span></li>
         </ul>
         <textarea class="cookie-box" id="cookie-input" placeholder="# Netscape HTTP Cookie File&#10;.facebook.com	TRUE	/	FALSE	...&#10;(paste your exported cookies here)"></textarea>
         <div class="session-actions">
@@ -212,6 +212,7 @@
           <button class="btn btn-danger" id="clear-cookies-btn">✕ Clear Session</button>
         </div>
         <div class="session-msg" id="session-msg"></div>
+        <div class="needs-cookie-hint" id="cookie-warn" style="display:none;margin-top:10px"></div>
       </div>
     </div>
 
@@ -296,17 +297,41 @@ $('session-toggle').addEventListener('click', () => {
   ch.classList.toggle('open', open);
 });
 
+function cookieBadgeText(d) {
+  if (!d || !d.loaded) return { text: 'Not connected', ok: false, warn: '' };
+  const logged = [];
+  if (d.facebook) logged.push('Facebook');
+  if (d.instagram) logged.push('Instagram');
+  if (d.youtube) logged.push('YouTube');
+  if (logged.length) {
+    return { text: `Logged in · ${logged.join(' · ')} · ${d.lines} cookies`, ok: true, warn: '' };
+  }
+  if (d.facebookPartial) {
+    return {
+      text: `Incomplete Facebook session · ${d.lines} cookies`,
+      ok: false,
+      warn: 'Found c_user but not xs. Re-export from facebook.com while fully logged in.'
+    };
+  }
+  return {
+    text: `${d.lines} cookies saved · no login found`,
+    ok: false,
+    warn: 'Those cookies are not a Facebook/Instagram login. Open facebook.com, log in, export Netscape or JSON from that tab — not a whole-browser dump.'
+  };
+}
+
 async function loadCookieStatus() {
   try {
     const r = await fetch('/api/cookies/status');
     const d = await r.json();
     const badge = $('session-badge');
-    if (d.loaded) {
-      badge.textContent = `Session active · ${d.lines} cookies`;
-      badge.className = 'session-badge active';
-    } else {
-      badge.textContent = 'Not connected';
-      badge.className = 'session-badge';
+    const info = cookieBadgeText(d);
+    badge.textContent = info.text;
+    badge.className = info.ok ? 'session-badge active' : 'session-badge';
+    const warn = $('cookie-warn');
+    if (warn) {
+      if (info.warn) { warn.style.display = 'block'; warn.textContent = info.warn; }
+      else { warn.style.display = 'none'; }
     }
   } catch {}
 }
@@ -395,7 +420,7 @@ async function analyze() {
 
     if (!res.ok) {
       setStatus('err', "Couldn't read that link");
-      $('error-box').textContent = data.error || 'Unknown error.';
+      $('error-box').textContent = [data.error, data.detail].filter(Boolean).join('\n\n') || 'Unknown error.';
       $('error-box').style.display = 'block';
       if (data.needsCookies) {
         $('needs-cookie-hint').style.display = 'block';
@@ -443,7 +468,8 @@ function renderResult(sourceUrl, data) {
       <button class="btn btn-ghost dl-btn">Download</button>
     `;
     row.querySelector('.dl-btn').addEventListener('click', () => {
-      window.location.href = `/api/download?url=${encodeURIComponent(sourceUrl)}&format_id=${encodeURIComponent(f.format_id)}`;
+      const audio = f.audioOnly ? '&audioOnly=1' : '';
+      window.location.href = `/api/download?url=${encodeURIComponent(sourceUrl)}&format_id=${encodeURIComponent(f.format_id)}${audio}`;
     });
     list.appendChild(row);
   });
