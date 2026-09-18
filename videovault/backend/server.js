@@ -100,6 +100,39 @@ function canonicalizeUrl(raw) {
   return s;
 }
 
+function facebookPostId(url) {
+  try {
+    const u = new URL(url);
+    const path = u.pathname.replace(/\/+$/, "");
+    const watch = u.searchParams.get("v") || u.searchParams.get("story_fbid");
+    if (watch && /^\d{8,}$/.test(String(watch))) return String(watch);
+    const m = path.match(/\/(?:permalink|posts|videos|reel|reels)\/(\d{8,})/i);
+    if (m) return m[1];
+    const tail = path.split("/").filter(Boolean).pop();
+    if (tail && /^\d{8,}$/.test(tail)) return tail;
+  } catch {}
+  return null;
+}
+
+function facebookUrlCandidates(url) {
+  const seen = new Set();
+  const out = [];
+  const push = (u) => {
+    if (!u || seen.has(u)) return;
+    seen.add(u);
+    out.push(u);
+  };
+  push(url);
+  const id = facebookPostId(url);
+  if (!id) return out;
+  // Group /permalink/ often yields "No video formats found"; watch/reel work more often.
+  push("https://www.facebook.com/watch/?v=" + id);
+  push("https://www.facebook.com/reel/" + id);
+  push("https://www.facebook.com/video.php?v=" + id);
+  push("https://m.facebook.com/watch/?v=" + id);
+  return out;
+}
+
 function refererFor(url) {
   try {
     const u = new URL(url);
@@ -453,11 +486,19 @@ function friendlyYtError(msg) {
       needsCookies: true,
     };
   }
+  if (/no video formats found/i.test(m)) {
+    return {
+      status: 422,
+      error:
+        "Facebook login worked, but this link is a group/post permalink — not a video player URL. yt-dlp found the post and no playable file. Open the post, tap the video so the address bar shows /videos/, /reel/, or watch/?v= and paste that instead. If the post is only a photo/text, there is nothing to download.",
+      detail: m.slice(0, 400),
+    };
+  }
   if (/private video|this video is unavailable|cannot parse data/i.test(m)) {
     return {
       status: 422,
       error:
-        "Could not read that video. If it is yours: use a canonical facebook.com/reel/… or /videos/… URL (not share/v), and a cookie export that includes c_user + xs. Facebook also changes their page often — this can be an extractor lag, not your cookies.",
+        "Could not read that video. If it is yours: use a canonical facebook.com/reel/… or /videos/… URL (not a group permalink), and a cookie export that includes c_user + xs.",
       detail: m.slice(0, 400),
     };
   }
@@ -579,8 +620,24 @@ app.post("/api/analyze", requireAuth, rateLimit, async (req, res) => {
     return res.status(400).json({ error: "Provide a valid https URL." });
   }
 
+  const candidates = facebookUrlCandidates(url);
+  let lastErr = null;
+  let raw = null;
+  let usedUrl = url;
   try {
-    const raw = await runYtDlp(["-J", ...commonYtArgs(url), url], { timeoutMs: 90_000 });
+    for (const candidate of candidates) {
+      try {
+        raw = await runYtDlp(["-J", ...commonYtArgs(candidate), candidate], { timeoutMs: 90_000 });
+        usedUrl = candidate;
+        lastErr = null;
+        break;
+      } catch (err) {
+        lastErr = err;
+        const msg = String(err && err.message || "");
+        if (!/no video formats found|cannot parse data/i.test(msg)) throw err;
+      }
+    }
+    if (!raw) throw lastErr || new Error("Could not read that link.");
     const info = parseYtDlpJson(raw);
 
     const seen = new Set();
