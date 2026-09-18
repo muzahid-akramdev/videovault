@@ -64,9 +64,8 @@ small personal use). Vercel is not part of this setup.
 3. Connect your GitHub repo.
 4. Render will detect the `Dockerfile` automatically — leave build settings
    as default.
-5. Under **Environment**, add:
-   - `SITE_PASSCODE` = a passcode of your choice (share this with your
-     friends/family, not publicly)
+5. Environment: leave empty to use the app with no passcode (recommended).
+   Only add `SITE_GATE=1` and `SITE_PASSCODE` if you want the lock screen.
 6. Click **Create Web Service**. First build takes a few minutes (installing
    yt-dlp/ffmpeg). Once live, Render gives you a URL like
    `https://videovault-xxxx.onrender.com` — share that link + the passcode

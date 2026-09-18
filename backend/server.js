@@ -13,15 +13,18 @@ const os = require("os");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const SITE_PASSCODE = process.env.SITE_PASSCODE;
+// Passcode screen is OFF unless you set both SITE_GATE=1 and SITE_PASSCODE.
+// A leftover SITE_PASSCODE in Render/Railway must not lock the owner out.
+const SITE_PASSCODE =
+  process.env.SITE_GATE === "1" ? process.env.SITE_PASSCODE : "";
 const IS_PROD = process.env.NODE_ENV === "production";
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
-if (!SITE_PASSCODE) {
-  console.warn(
-    "\n⚠️  WARNING: SITE_PASSCODE is not set. Anyone who can reach this site can use it.\n"
-  );
+if (SITE_PASSCODE) {
+  console.log("Passcode gate is on.");
+} else {
+  console.log("Passcode gate is off — app is open.");
 }
 
 app.use(cors());
